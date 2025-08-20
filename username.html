@@ -20,9 +20,20 @@
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbwkeOMXCBuAWgjJYMSprPMqDx_mG46vJpPWYWtablokwgdSPrckl4KJ6956v6KKmviP/exec";
 
-// Obtener username de la URL
-const params = new URLSearchParams(window.location.search);
-const username = params.get("username");
+// ------------------ OBTENER USERNAME ------------------
+// 1. Intentamos obtenerlo de query string
+let params = new URLSearchParams(window.location.search);
+let username = params.get("username");
+
+// 2. Si no existe, lo tomamos de la ruta (para /miweb)
+if (!username) {
+  const path = window.location.pathname; // ej: /miweb
+  const lastSegment = path.substring(path.lastIndexOf("/") + 1);
+  if (lastSegment && lastSegment !== "username.html") {
+    username = lastSegment;
+  }
+}
+
 if (!username) {
   alert("Falta username en la URL");
 }
@@ -33,7 +44,7 @@ let turnosData = {};
 let selectedProf = "";
 let selectedHora = "";
 
-// render calendario al cargar
+// ------------------ RENDER CALENDARIO ------------------
 document.addEventListener("DOMContentLoaded", () => {
   renderCalendario(selectedDate.getFullYear(), selectedDate.getMonth());
 });
@@ -70,7 +81,7 @@ function renderCalendario(year, month) {
   };
 }
 
-// cargar turnos de una fecha
+// ------------------ CARGAR TURNOS ------------------
 async function cargarTurnos(fechaStr) {
   selectedDate = new Date(fechaStr+"T00:00:00");
   document.getElementById("turnos").innerHTML = `<h2>Turnos del ${fechaStr}</h2><p>Cargando...</p>`;
@@ -104,7 +115,7 @@ async function cargarTurnos(fechaStr) {
   document.getElementById("turnos").innerHTML = html;
 }
 
-// seleccionar turno y mostrar formulario
+// ------------------ SELECCIONAR TURNO ------------------
 function seleccionarTurno(prof, hora) {
   selectedProf = prof;
   selectedHora = hora;
@@ -165,28 +176,8 @@ function seleccionarTurno(prof, hora) {
 }
 </script>
 
-  <script>
-// Sacamos el username de la URL: ?username=pepito o /pepito
-let username = null;
 
-// 1. Intentamos obtenerlo de query string
-const params = new URLSearchParams(window.location.search);
-username = params.get("username");
-
-// 2. Si no existe, lo tomamos de la ruta
-if (!username) {
-  const path = window.location.pathname; // ej: /miweb
-  const lastSegment = path.substring(path.lastIndexOf("/") + 1);
-  if (lastSegment && lastSegment !== "username.html") {
-    username = lastSegment;
-  }
-}
-
-if (!username) {
-  alert("Falta username en la URL");
-  // opcional: redirigir a login
-}
-  </script>
+  
 </head>
 <body>
   <h1>Turnos Disponibles: <span id="user"></span></h1>
