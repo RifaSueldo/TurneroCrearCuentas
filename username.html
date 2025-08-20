@@ -165,6 +165,28 @@ function seleccionarTurno(prof, hora) {
 }
 </script>
 
+  <script>
+// Sacamos el username de la URL: ?username=pepito o /pepito
+let username = null;
+
+// 1. Intentamos obtenerlo de query string
+const params = new URLSearchParams(window.location.search);
+username = params.get("username");
+
+// 2. Si no existe, lo tomamos de la ruta
+if (!username) {
+  const path = window.location.pathname; // ej: /miweb
+  const lastSegment = path.substring(path.lastIndexOf("/") + 1);
+  if (lastSegment && lastSegment !== "username.html") {
+    username = lastSegment;
+  }
+}
+
+if (!username) {
+  alert("Falta username en la URL");
+  // opcional: redirigir a login
+}
+  </script>
 </head>
 <body>
   <h1>Turnos Disponibles: <span id="user"></span></h1>
