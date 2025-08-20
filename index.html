@@ -2,70 +2,73 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Página Pública</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plataforma de Turnos</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 2rem;
-      background: #f5f5f5;
-      color: #333;
-    }
-    #app {
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      max-width: 600px;
-      margin: auto;
-    }
-    h1 { color: #0077cc; }
-    .error { color: red; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h1 { color: #333; }
+    .profesional { margin-bottom: 20px; }
+    .turno { background: #f4f4f4; padding: 5px 10px; margin: 5px 0; border-radius: 5px; }
   </style>
 </head>
 <body>
-  <div id="app">Cargando...</div>
+  <h1 id="titulo">Cargando perfil...</h1>
+  <p id="contenido"></p>
+
+  <div id="profesionales"></div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbyVSHiv1fz5OY7Hg65Ne27-hgz9mmDiUgSC2g_X0Q0JmFzSaoYgTwsXB0UqZs_gwrxsaQ/exec"; // 👈 reemplazá con tu URL de Apps Script
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxGiM4I_ySxpGEqfp1xmw6WLKYWqZseJBThtlwz0lioTXIo1wie17oplGimoqV1T7rQ/exec"; // 👈 pegá acá la URL de tu Apps Script desplegado
 
-    // 1. Obtener el username desde la ruta (ej: /peluqueria)
-    const path = window.location.pathname.replace(/^\/+|\/+$/g, ""); 
-    const username = path || null;
-
-    async function cargarUsuario() {
-      const app = document.getElementById("app");
-
-      if (!username) {
-        app.innerHTML = "<p class='error'>⚠️ Falta username en la URL (ej: /peluqueria)</p>";
+    async function cargarPerfil() {
+      // Obtener username desde la URL: /pepito
+      const path = window.location.pathname.replace("/", "");
+      if (!path) {
+        document.getElementById("titulo").textContent = "Bienvenido a la plataforma";
         return;
       }
 
       try {
-        const res = await fetch(`${API_URL}?username=${username}`);
+        const res = await fetch(`${scriptURL}?username=${path}`);
         const data = await res.json();
 
-        if (data.status !== "ok") {
-          app.innerHTML = `<p class='error'>❌ Usuario no encontrado: ${username}</p>`;
-          return;
-        }
+        if (data.status === "ok") {
+          document.getElementById("titulo").textContent = "Perfil de " + data.username;
+          document.getElementById("contenido").textContent = data.contenido || "Sin descripción";
 
-        // 3. Mostrar datos básicos del usuario
-        app.innerHTML = `
-          <h1>Perfil de ${data.username}</h1>
-          <p><strong>Email:</strong> ${data.email}</p>
-          <div style="white-space: pre-wrap; border:1px solid #ccc; padding:1rem; border-radius:6px;">
-    ${data.contenido || "No hay contenido agregado aún."}
-  </div>
-          <p><em>Acá después podrás mostrar horarios o info personalizada.</em></p>
-        `;
+          const contenedor = document.getElementById("profesionales");
+          if (data.profesionales && data.profesionales.length > 0) {
+            const agrupados = {};
+            // Agrupar por profesional
+            data.profesionales.forEach(p => {
+              if (!agrupados[p.nombre]) agrupados[p.nombre] = [];
+              agrupados[p.nombre].push(p.turno);
+            });
+
+            for (const nombre in agrupados) {
+              const div = document.createElement("div");
+              div.className = "profesional";
+              div.innerHTML = `<h3>${nombre}</h3>`;
+              agrupados[nombre].forEach(t => {
+                const tDiv = document.createElement("div");
+                tDiv.className = "turno";
+                tDiv.textContent = t;
+                div.appendChild(tDiv);
+              });
+              contenedor.appendChild(div);
+            }
+          } else {
+            document.getElementById("profesionales").innerHTML = "<p>No hay turnos visibles aún.</p>";
+          }
+        } else {
+          document.getElementById("titulo").textContent = "Usuario no encontrado";
+        }
       } catch (err) {
-        app.innerHTML = `<p class='error'>Error de conexión con el servidor</p>`;
         console.error(err);
+        document.getElementById("titulo").textContent = "Error al cargar perfil";
       }
     }
 
-    cargarUsuario();
+    cargarPerfil();
   </script>
 </body>
 </html>
