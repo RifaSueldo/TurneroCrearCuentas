@@ -8,38 +8,32 @@
     table { border-collapse: collapse; }
     th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
     td:hover { background-color: #f0f0f0; cursor: pointer; }
-    .turnos { margin-top: 20px; }
-    .turnos h3 { margin-bottom: 5px; }
-    .hora { display:inline-block; margin:2px 4px; padding:4px 8px; border:1px solid #aaa; border-radius:4px; background:#e0ffe0; }
-    .hora.bloqueado { background:#ffe0e0; text-decoration:line-through; }
+    .hora { padding:5px; margin:3px; border:1px solid #000; cursor:pointer; display:inline-block;}
+.bloqueado { background:#ccc; cursor:not-allowed;}
+.disponible { background:#aaf;}
+.turnos { margin-bottom:15px;}
   </style>
 
-  <script>
-  const API_URL = "https://script.google.com/macros/s/AKfycbwkeOMXCBuAWgjJYMSprPMqDx_mG46vJpPWYWtablokwgdSPrckl4KJ6956v6KKmviP/exec";
+ 
+ 
 
-// Sacamos el username de la URL
-let username = null;
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwkeOMXCBuAWgjJYMSprPMqDx_mG46vJpPWYWtablokwgdSPrckl4KJ6956v6KKmviP/exec";
 
-// 1️⃣ Intentamos leer de ?username=pepito
+// Obtener username de la URL
 const params = new URLSearchParams(window.location.search);
-username = params.get("username");
-
-// 2️⃣ Si no hay, tomamos del pathname: /miweb → "miweb"
-if (!username) {
-  const pathParts = window.location.pathname.split("/").filter(p=>p!=="");
-  if (pathParts.length > 0) {
-    username = pathParts[pathParts.length-1]; // último segmento de la URL
-  }
-}
-
+const username = params.get("username");
 if (!username) {
   alert("Falta username en la URL");
 }
 
-let selectedDate = new Date(); // hoy por defecto
+let selectedDate = new Date();
 let profesionales = [];
 let turnosData = {};
+let selectedProf = "";
+let selectedHora = "";
 
+// render calendario al cargar
 document.addEventListener("DOMContentLoaded", () => {
   renderCalendario(selectedDate.getFullYear(), selectedDate.getMonth());
 });
@@ -52,7 +46,7 @@ function renderCalendario(year, month) {
 
   let table = "<table><tr>";
   const diasSemana = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-  diasSemana.forEach(d => table += `<th>${d}</th>`); 
+  diasSemana.forEach(d => table += `<th>${d}</th>`);
   table += "</tr><tr>";
 
   for (let i=0;i<firstDay.getDay();i++) table += "<td></td>";
@@ -76,9 +70,11 @@ function renderCalendario(year, month) {
   };
 }
 
+// cargar turnos de una fecha
 async function cargarTurnos(fechaStr) {
   selectedDate = new Date(fechaStr+"T00:00:00");
   document.getElementById("turnos").innerHTML = `<h2>Turnos del ${fechaStr}</h2><p>Cargando...</p>`;
+  document.getElementById("reservaFormContainer").style.display = "none";
 
   const res = await fetch(`${API_URL}?username=${username}&fecha=${fechaStr}`);
   const data = await res.json();
@@ -95,11 +91,11 @@ async function cargarTurnos(fechaStr) {
   profesionales.forEach(prof=>{
     html += `<div class="turnos"><h3>${prof.nombre}</h3>`;
     const turnos = turnosData[prof.nombre] || [];
-    if (turnos.length===0) {
-      html += "<p>No hay turnos disponibles</p>";
-    } else {
+    if (turnos.length===0) html += "<p>No hay turnos disponibles</p>";
+    else {
       turnos.forEach(t=>{
-        html += `<span class="hora ${t.estado==="bloqueado"?"bloqueado":""}">${t.hora}</span>`;
+        const clase = t.estado==="bloqueado"?"bloqueado":"disponible";
+        html += `<span class="hora ${clase}" onclick="seleccionarTurno('${prof.nombre}','${t.hora}')">${t.hora}</span>`;
       });
     }
     html += "</div>";
@@ -107,40 +103,43 @@ async function cargarTurnos(fechaStr) {
 
   document.getElementById("turnos").innerHTML = html;
 }
-function reservarTurno(profNombre, hora) {
+
+// seleccionar turno y mostrar formulario
+function seleccionarTurno(prof, hora) {
+  selectedProf = prof;
+  selectedHora = hora;
   const fechaStr = selectedDate.toISOString().split("T")[0];
-  const formDiv = document.getElementById("formReserva");
-  
-  formDiv.innerHTML = `
-    <h3>Reservar turno en ${username}</h3>
-    <p>Profesional: ${profNombre}</p>
-    <p>Fecha: ${fechaStr}</p>
-    <p>Hora: ${hora}</p>
+
+  const formContainer = document.getElementById("reservaFormContainer");
+  formContainer.style.display = "block";
+  formContainer.innerHTML = `
+    <h3>Reservando turno en ${username} con ${prof} a las ${hora}</h3>
     <form id="reservaForm">
-      <input type="text" name="nombre" placeholder="Nombre" required><br>
-      <input type="text" name="apellido" placeholder="Apellido" required><br>
-      <input type="tel" name="telefono" placeholder="Teléfono" required><br>
-      <input type="text" name="direccion" placeholder="Dirección" required><br>
-      <input type="date" name="fechaNacimiento" placeholder="Fecha de nacimiento" required><br>
-      <input type="email" name="email" placeholder="Mail" required><br>
-      <input type="text" name="whatsapp" placeholder="Whatsapp" required><br>
-      <input type="text" name="dni" placeholder="DNI" required><br>
-      <textarea name="comentario" placeholder="Comentario (opcional)"></textarea><br>
-      <input type="text" name="extra1" placeholder="Extra1"><br>
-      <input type="text" name="extra2" placeholder="Extra2"><br>
-      <input type="text" name="extra3" placeholder="Extra3"><br>
+      <input type="text" name="nombre" placeholder="Nombre" required>
+      <input type="text" name="apellido" placeholder="Apellido" required>
+      <input type="tel" name="telefono" placeholder="Teléfono" required>
+      <input type="text" name="direccion" placeholder="Dirección" required>
+      <input type="date" name="fechaNacimiento" placeholder="Fecha de nacimiento" required>
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="text" name="whatsapp" placeholder="Whatsapp" required>
+      <input type="text" name="dni" placeholder="DNI" required>
+      <textarea name="comentario" placeholder="Comentario (opcional)"></textarea>
+      <input type="text" name="extra1" placeholder="Extra1">
+      <input type="text" name="extra2" placeholder="Extra2">
+      <input type="text" name="extra3" placeholder="Extra3">
       <button type="submit">Reservar</button>
     </form>
+    <div id="reservaMsg"></div>
   `;
 
-  document.getElementById("reservaForm").onsubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const reserva = {
+  document.getElementById("reservaForm").onsubmit = async function(event){
+    event.preventDefault();
+    const formData = new FormData(this);
+    const dataToSend = {
       username,
-      profesional: profNombre,
+      profesional: selectedProf,
       fecha: fechaStr,
-      hora,
+      hora: selectedHora,
       nombre: formData.get("nombre"),
       apellido: formData.get("apellido"),
       telefono: formData.get("telefono"),
@@ -155,26 +154,17 @@ function reservarTurno(profNombre, hora) {
       extra3: formData.get("extra3")
     };
 
-    // Enviar a Apps Script
-    const res = await fetch(`${API_URL}`, {
+    const res = await fetch(API_URL, {
       method: "POST",
-      body: new URLSearchParams({
-        action: "saveReserva",
-        data: JSON.stringify(reserva)
-      })
+      body: new URLSearchParams({action:"saveReserva", data: JSON.stringify(dataToSend)})
     });
     const result = await res.json();
-    if(result.status === "ok"){
-      alert("Turno reservado con éxito!");
-      formDiv.innerHTML = "";
-      cargarTurnos(fechaStr); // refrescar turnos
-    } else {
-      alert("Error al reservar: " + result.msg);
-    }
+    document.getElementById("reservaMsg").innerText = result.status==="ok"?"Turno reservado con éxito":"Error al reservar";
+    if(result.status==="ok") cargarTurnos(fechaStr);
   };
 }
+</script>
 
-  </script>
 </head>
 <body>
   <h1>Turnos Disponibles: <span id="user"></span></h1>
@@ -183,6 +173,7 @@ function reservarTurno(profNombre, hora) {
     <button id="nextMonth">Mes siguiente →</button>
   </div>
   <div id="calendario"></div>
-  <div id="turnos"></div>
+<div id="turnos"></div>
+<div id="reservaFormContainer" style="display:none;"></div>
 </body>
 </html>
