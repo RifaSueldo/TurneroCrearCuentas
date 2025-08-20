@@ -13,89 +13,101 @@
     .hora { display:inline-block; margin:2px 4px; padding:4px 8px; border:1px solid #aaa; border-radius:4px; background:#e0ffe0; }
     .hora.bloqueado { background:#ffe0e0; text-decoration:line-through; }
   </style>
+
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbziq2W5T-UfBB2ohMQDn9cIG-r6iGs8IPgNJIPxlQGwjW8BkuIoxku81pk16S7zxFZEAw/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbziq2W5T-UfBB2ohMQDn9cIG-r6iGs8IPgNJIPxlQGwjW8BkuIoxku81pk16S7zxFZEAw/exec";
 
-    // Sacamos el username de la URL: ?username=pepito
-    const params = new URLSearchParams(window.location.search);
-    const username = params.get("username");
-    if (!username) {
-      alert("Falta username en la URL");
-    }
+// Sacamos el username de la URL
+let username = null;
 
-    let selectedDate = new Date(); // hoy por defecto
-    let profesionales = [];
-    let turnosData = {};
+// 1️⃣ Intentamos leer de ?username=pepito
+const params = new URLSearchParams(window.location.search);
+username = params.get("username");
 
-    document.addEventListener("DOMContentLoaded", () => {
-      renderCalendario(selectedDate.getFullYear(), selectedDate.getMonth());
-    });
+// 2️⃣ Si no hay, tomamos del pathname: /miweb → "miweb"
+if (!username) {
+  const pathParts = window.location.pathname.split("/").filter(p=>p!=="");
+  if (pathParts.length > 0) {
+    username = pathParts[pathParts.length-1]; // último segmento de la URL
+  }
+}
 
-    function renderCalendario(year, month) {
-      const firstDay = new Date(year, month, 1);
-      const lastDay = new Date(year, month + 1, 0);
-      const calendarDiv = document.getElementById("calendario");
-      calendarDiv.innerHTML = `<h2>${firstDay.toLocaleString("es-ES",{month:"long", year:"numeric"})}</h2>`;
+if (!username) {
+  alert("Falta username en la URL");
+}
 
-      let table = "<table><tr>";
-      const diasSemana = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-      diasSemana.forEach(d => table += `<th>${d}</th>`); 
-      table += "</tr><tr>";
+let selectedDate = new Date(); // hoy por defecto
+let profesionales = [];
+let turnosData = {};
 
-      // espacios antes del primer día
-      for (let i=0;i<firstDay.getDay();i++) table += "<td></td>";
+document.addEventListener("DOMContentLoaded", () => {
+  renderCalendario(selectedDate.getFullYear(), selectedDate.getMonth());
+});
 
-      for (let d=1; d<=lastDay.getDate(); d++) {
-        const fecha = new Date(year, month, d);
-        const fechaStr = fecha.toISOString().split("T")[0];
-        table += `<td onclick="cargarTurnos('${fechaStr}')">${d}</td>`;
-        if (fecha.getDay() === 6 && d!==lastDay.getDate()) table += "</tr><tr>";
-      }
-      table += "</tr></table>";
-      calendarDiv.innerHTML += table;
+function renderCalendario(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const calendarDiv = document.getElementById("calendario");
+  calendarDiv.innerHTML = `<h2>${firstDay.toLocaleString("es-ES",{month:"long", year:"numeric"})}</h2>`;
 
-      // flechas de navegación
-      document.getElementById("prevMonth").onclick = ()=>{
-        const prev = new Date(year, month-1, 1);
-        renderCalendario(prev.getFullYear(), prev.getMonth());
-      };
-      document.getElementById("nextMonth").onclick = ()=>{
-        const next = new Date(year, month+1, 1);
-        renderCalendario(next.getFullYear(), next.getMonth());
-      };
-    }
+  let table = "<table><tr>";
+  const diasSemana = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  diasSemana.forEach(d => table += `<th>${d}</th>`); 
+  table += "</tr><tr>";
 
-    async function cargarTurnos(fechaStr) {
-      selectedDate = new Date(fechaStr+"T00:00:00");
-      document.getElementById("turnos").innerHTML = `<h2>Turnos del ${fechaStr}</h2><p>Cargando...</p>`;
+  for (let i=0;i<firstDay.getDay();i++) table += "<td></td>";
 
-      const res = await fetch(`${API_URL}?username=${username}&fecha=${fechaStr}`);
-      const data = await res.json();
+  for (let d=1; d<=lastDay.getDate(); d++) {
+    const fecha = new Date(year, month, d);
+    const fechaStr = fecha.toISOString().split("T")[0];
+    table += `<td onclick="cargarTurnos('${fechaStr}')">${d}</td>`;
+    if (fecha.getDay() === 6 && d!==lastDay.getDate()) table += "</tr><tr>";
+  }
+  table += "</tr></table>";
+  calendarDiv.innerHTML += table;
 
-      if (data.status !== "ok") {
-        document.getElementById("turnos").innerHTML = "Error al cargar turnos";
-        return;
-      }
+  document.getElementById("prevMonth").onclick = ()=>{
+    const prev = new Date(year, month-1, 1);
+    renderCalendario(prev.getFullYear(), prev.getMonth());
+  };
+  document.getElementById("nextMonth").onclick = ()=>{
+    const next = new Date(year, month+1, 1);
+    renderCalendario(next.getFullYear(), next.getMonth());
+  };
+}
 
-      profesionales = data.profesionales;
-      turnosData = data.turnos;
+async function cargarTurnos(fechaStr) {
+  selectedDate = new Date(fechaStr+"T00:00:00");
+  document.getElementById("turnos").innerHTML = `<h2>Turnos del ${fechaStr}</h2><p>Cargando...</p>`;
 
-      let html = "";
-      profesionales.forEach(prof=>{
-        html += `<div class="turnos"><h3>${prof.nombre}</h3>`;
-        const turnos = turnosData[prof.nombre] || [];
-        if (turnos.length===0) {
-          html += "<p>No hay turnos disponibles</p>";
-        } else {
-          turnos.forEach(t=>{
-            html += `<span class="hora ${t.estado==="bloqueado"?"bloqueado":""}">${t.hora}</span>`;
-          });
-        }
-        html += "</div>";
+  const res = await fetch(`${API_URL}?username=${username}&fecha=${fechaStr}`);
+  const data = await res.json();
+
+  if (data.status !== "ok") {
+    document.getElementById("turnos").innerHTML = "Error al cargar turnos";
+    return;
+  }
+
+  profesionales = data.profesionales;
+  turnosData = data.turnos;
+
+  let html = "";
+  profesionales.forEach(prof=>{
+    html += `<div class="turnos"><h3>${prof.nombre}</h3>`;
+    const turnos = turnosData[prof.nombre] || [];
+    if (turnos.length===0) {
+      html += "<p>No hay turnos disponibles</p>";
+    } else {
+      turnos.forEach(t=>{
+        html += `<span class="hora ${t.estado==="bloqueado"?"bloqueado":""}">${t.hora}</span>`;
       });
-
-      document.getElementById("turnos").innerHTML = html;
     }
+    html += "</div>";
+  });
+
+  document.getElementById("turnos").innerHTML = html;
+}
+
   </script>
 </head>
 <body>
