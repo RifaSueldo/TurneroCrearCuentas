@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Panel de Usuario</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 2rem;
+    }
+    #panel {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.8rem;
+      margin: 0.5rem 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      padding: 0.8rem 1.2rem;
+      background: #0077cc;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    button:hover { background: #005fa3; }
+    #msg { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h2>Panel de Usuario</h2>
+    <p><strong>Username:</strong> <span id="username"></span></p>
+    
+    <label for="contenido">Contenido público:</label>
+    <textarea id="contenido" rows="5" placeholder="Escribe aquí lo que quieras mostrar en tu página pública"></textarea>
+    
+    <button id="guardar">Guardar contenido</button>
+    <div id="msg"></div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzzpARxch-VJRAFQ3u5IecNmKAeqI4G6mUE2bq0BxPiQTm1IBWGfUzaRCz_qrKU8klf/exec"; // 👈 reemplazar con tu URL de Apps Script
+
+    // Obtenemos usuario guardado en localStorage luego del login
+    const user = JSON.parse(localStorage.getItem("user"));
+    const msg = document.getElementById("msg");
+    const usernameSpan = document.getElementById("username");
+    const contenidoTextarea = document.getElementById("contenido");
+
+    if (!user) {
+      alert("No estás logueado. Redirigiendo a login...");
+      window.location.href = "/login.html";
+    } else {
+      usernameSpan.textContent = user.username;
+
+      // 1. Cargar contenido actual del usuario
+      async function cargarContenido() {
+        try {
+          const res = await fetch(`${API_URL}?username=${user.username}`);
+          const data = await res.json();
+          if (data.status === "ok") {
+            contenidoTextarea.value = data.contenido || ""; // si existe contenido guardado
+          }
+        } catch(err) {
+          console.error(err);
+          msg.textContent = "Error al cargar el contenido.";
+        }
+      }
+      cargarContenido();
+
+      // 2. Guardar contenido
+      document.getElementById("guardar").addEventListener("click", async ()=>{
+        const valor = contenidoTextarea.value.trim();
+        if (!valor) {
+          msg.style.color = "red";
+          msg.textContent = "Escribe algo antes de guardar.";
+          return;
+        }
+
+        try {
+          const res = await fetch(API_URL, {
+            method: "POST",
+            body: new URLSearchParams({
+              action: "saveContent",
+              userId: user.userId,
+              contenido: valor
+            })
+          });
+          const data = await res.json();
+          if (data.status === "ok") {
+            msg.style.color = "green";
+            msg.textContent = "✅ Contenido guardado correctamente.";
+          } else {
+            msg.style.color = "red";
+            msg.textContent = `❌ ${data.msg}`;
+          }
+        } catch(err) {
+          console.error(err);
+          msg.style.color = "red";
+          msg.textContent = "Error al guardar el contenido.";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

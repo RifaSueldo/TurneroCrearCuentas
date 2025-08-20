@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Página Pública</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      background: #f5f5f5;
+      color: #333;
+    }
+    #app {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      max-width: 600px;
+      margin: auto;
+    }
+    h1 { color: #0077cc; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <div id="app">Cargando...</div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzzpARxch-VJRAFQ3u5IecNmKAeqI4G6mUE2bq0BxPiQTm1IBWGfUzaRCz_qrKU8klf/exec"; // 👈 reemplazá con tu URL de Apps Script
+
+    // 1. Obtener el username desde la ruta (ej: /peluqueria)
+    const path = window.location.pathname.replace(/^\/+|\/+$/g, ""); 
+    const username = path || null;
+
+    async function cargarUsuario() {
+      const app = document.getElementById("app");
+
+      if (!username) {
+        app.innerHTML = "<p class='error'>⚠️ Falta username en la URL (ej: /peluqueria)</p>";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}?username=${username}`);
+        const data = await res.json();
+
+        if (data.status !== "ok") {
+          app.innerHTML = `<p class='error'>❌ Usuario no encontrado: ${username}</p>`;
+          return;
+        }
+
+        // 3. Mostrar datos básicos del usuario
+        app.innerHTML = `
+          <h1>Perfil de ${data.username}</h1>
+          <p><strong>Email:</strong> ${data.email}</p>
+          <div style="white-space: pre-wrap; border:1px solid #ccc; padding:1rem; border-radius:6px;">
+    ${data.contenido || "No hay contenido agregado aún."}
+  </div>
+          <p><em>Acá después podrás mostrar horarios o info personalizada.</em></p>
+        `;
+      } catch (err) {
+        app.innerHTML = `<p class='error'>Error de conexión con el servidor</p>`;
+        console.error(err);
+      }
+    }
+
+    cargarUsuario();
+  </script>
+</body>
+</html>
