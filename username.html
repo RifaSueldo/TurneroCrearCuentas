@@ -107,6 +107,72 @@ async function cargarTurnos(fechaStr) {
 
   document.getElementById("turnos").innerHTML = html;
 }
+function reservarTurno(profNombre, hora) {
+  const fechaStr = selectedDate.toISOString().split("T")[0];
+  const formDiv = document.getElementById("formReserva");
+  
+  formDiv.innerHTML = `
+    <h3>Reservar turno en ${username}</h3>
+    <p>Profesional: ${profNombre}</p>
+    <p>Fecha: ${fechaStr}</p>
+    <p>Hora: ${hora}</p>
+    <form id="reservaForm">
+      <input type="text" name="nombre" placeholder="Nombre" required><br>
+      <input type="text" name="apellido" placeholder="Apellido" required><br>
+      <input type="tel" name="telefono" placeholder="Teléfono" required><br>
+      <input type="text" name="direccion" placeholder="Dirección" required><br>
+      <input type="date" name="fechaNacimiento" placeholder="Fecha de nacimiento" required><br>
+      <input type="email" name="email" placeholder="Mail" required><br>
+      <input type="text" name="whatsapp" placeholder="Whatsapp" required><br>
+      <input type="text" name="dni" placeholder="DNI" required><br>
+      <textarea name="comentario" placeholder="Comentario (opcional)"></textarea><br>
+      <input type="text" name="extra1" placeholder="Extra1"><br>
+      <input type="text" name="extra2" placeholder="Extra2"><br>
+      <input type="text" name="extra3" placeholder="Extra3"><br>
+      <button type="submit">Reservar</button>
+    </form>
+  `;
+
+  document.getElementById("reservaForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const reserva = {
+      username,
+      profesional: profNombre,
+      fecha: fechaStr,
+      hora,
+      nombre: formData.get("nombre"),
+      apellido: formData.get("apellido"),
+      telefono: formData.get("telefono"),
+      direccion: formData.get("direccion"),
+      fechaNacimiento: formData.get("fechaNacimiento"),
+      email: formData.get("email"),
+      whatsapp: formData.get("whatsapp"),
+      dni: formData.get("dni"),
+      comentario: formData.get("comentario"),
+      extra1: formData.get("extra1"),
+      extra2: formData.get("extra2"),
+      extra3: formData.get("extra3")
+    };
+
+    // Enviar a Apps Script
+    const res = await fetch(`${API_URL}`, {
+      method: "POST",
+      body: new URLSearchParams({
+        action: "saveReserva",
+        data: JSON.stringify(reserva)
+      })
+    });
+    const result = await res.json();
+    if(result.status === "ok"){
+      alert("Turno reservado con éxito!");
+      formDiv.innerHTML = "";
+      cargarTurnos(fechaStr); // refrescar turnos
+    } else {
+      alert("Error al reservar: " + result.msg);
+    }
+  };
+}
 
   </script>
 </head>
