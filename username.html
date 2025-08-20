@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Turnos Disponibles</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding:20px; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+    td:hover { background-color: #f0f0f0; cursor: pointer; }
+    .turnos { margin-top: 20px; }
+    .turnos h3 { margin-bottom: 5px; }
+    .hora { display:inline-block; margin:2px 4px; padding:4px 8px; border:1px solid #aaa; border-radius:4px; background:#e0ffe0; }
+    .hora.bloqueado { background:#ffe0e0; text-decoration:line-through; }
+  </style>
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbziq2W5T-UfBB2ohMQDn9cIG-r6iGs8IPgNJIPxlQGwjW8BkuIoxku81pk16S7zxFZEAw/exec";
+
+    // Sacamos el username de la URL: ?username=pepito
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get("username");
+    if (!username) {
+      alert("Falta username en la URL");
+    }
+
+    let selectedDate = new Date(); // hoy por defecto
+    let profesionales = [];
+    let turnosData = {};
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderCalendario(selectedDate.getFullYear(), selectedDate.getMonth());
+    });
+
+    function renderCalendario(year, month) {
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const calendarDiv = document.getElementById("calendario");
+      calendarDiv.innerHTML = `<h2>${firstDay.toLocaleString("es-ES",{month:"long", year:"numeric"})}</h2>`;
+
+      let table = "<table><tr>";
+      const diasSemana = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+      diasSemana.forEach(d => table += `<th>${d}</th>`); 
+      table += "</tr><tr>";
+
+      // espacios antes del primer día
+      for (let i=0;i<firstDay.getDay();i++) table += "<td></td>";
+
+      for (let d=1; d<=lastDay.getDate(); d++) {
+        const fecha = new Date(year, month, d);
+        const fechaStr = fecha.toISOString().split("T")[0];
+        table += `<td onclick="cargarTurnos('${fechaStr}')">${d}</td>`;
+        if (fecha.getDay() === 6 && d!==lastDay.getDate()) table += "</tr><tr>";
+      }
+      table += "</tr></table>";
+      calendarDiv.innerHTML += table;
+
+      // flechas de navegación
+      document.getElementById("prevMonth").onclick = ()=>{
+        const prev = new Date(year, month-1, 1);
+        renderCalendario(prev.getFullYear(), prev.getMonth());
+      };
+      document.getElementById("nextMonth").onclick = ()=>{
+        const next = new Date(year, month+1, 1);
+        renderCalendario(next.getFullYear(), next.getMonth());
+      };
+    }
+
+    async function cargarTurnos(fechaStr) {
+      selectedDate = new Date(fechaStr+"T00:00:00");
+      document.getElementById("turnos").innerHTML = `<h2>Turnos del ${fechaStr}</h2><p>Cargando...</p>`;
+
+      const res = await fetch(`${API_URL}?username=${username}&fecha=${fechaStr}`);
+      const data = await res.json();
+
+      if (data.status !== "ok") {
+        document.getElementById("turnos").innerHTML = "Error al cargar turnos";
+        return;
+      }
+
+      profesionales = data.profesionales;
+      turnosData = data.turnos;
+
+      let html = "";
+      profesionales.forEach(prof=>{
+        html += `<div class="turnos"><h3>${prof.nombre}</h3>`;
+        const turnos = turnosData[prof.nombre] || [];
+        if (turnos.length===0) {
+          html += "<p>No hay turnos disponibles</p>";
+        } else {
+          turnos.forEach(t=>{
+            html += `<span class="hora ${t.estado==="bloqueado"?"bloqueado":""}">${t.hora}</span>`;
+          });
+        }
+        html += "</div>";
+      });
+
+      document.getElementById("turnos").innerHTML = html;
+    }
+  </script>
+</head>
+<body>
+  <h1>Turnos Disponibles: <span id="user"></span></h1>
+  <div>
+    <button id="prevMonth">← Mes anterior</button>
+    <button id="nextMonth">Mes siguiente →</button>
+  </div>
+  <div id="calendario"></div>
+  <div id="turnos"></div>
+</body>
+</html>
